@@ -45,6 +45,67 @@
                 </span>
             </div>
         </div>
+
+           <div class="filter-form mt-4">
+  <label>
+    Début :
+    <input type="date" v-model="customStartDate" />
+  </label>
+  <label class="ms-3">
+    Fin :
+    <input type="date" v-model="customEndDate" />
+  </label>
+  <label class="ms-3">
+    Statuts :
+    <select multiple v-model="selectedStatuses">
+      <option :value="0">DOWN</option>
+      <option :value="1">UP</option>
+      <option :value="2">PENDING</option>
+      <option :value="3">MAINTENANCE</option>
+    </select>
+  </label>
+  <button class="btn btn-primary ms-3" @click="filterStatusByPeriod">
+    Rechercher
+  </button>
+</div>
+
+ 
+<table class="table table-bordered mt-4" v-if="filteredHeartbeats.length">
+  <thead>
+    <tr>
+      <th>Date/Heure</th>
+      <th>Statut</th>
+      <th>Message</th>
+      <th>Monitor ID</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr v-for="hb in filteredHeartbeats" :key="hb.id">
+      <td>{{ hb.time }}</td>
+      <td>
+        <span v-if="hb.status === 0">🔴 DOWN</span>
+        <span v-else-if="hb.status === 1">🟢 UP</span>
+        <span v-else-if="hb.status === 2">🟡 PENDING</span>
+        <span v-else-if="hb.status === 3">🟣 MAINTENANCE</span>
+      </td>
+      <td>{{ hb.msg }}</td>
+      <td>{{ hb.monitor_id }}</td>
+    </tr>
+  </tbody>
+</table>
+
+<PingChart
+  v-if="filteredHeartbeats.length"
+  :monitor-id="filteredHeartbeats[0].monitor_id"  
+  :start-date="customStartDate"
+  :end-date="customEndDate"
+/>
+
+
+
+
+
+
         <div ref="monitorList" class="monitor-list" :class="{ scrollbar: scrollbar }" :style="monitorListStyle">
             <div v-if="Object.keys($root.monitorList).length === 0" class="text-center mt-3">
                 {{ $t("No Monitors, please") }} <router-link to="/add">{{ $t("add one") }}</router-link>
@@ -62,6 +123,12 @@
             />
         </div>
     </div>
+     
+
+
+
+
+
 
     <Confirm ref="confirmPause" :yes-text="$t('Yes')" :no-text="$t('No')" @yes="pauseSelected">
         {{ $t("pauseMonitorMsg") }}
@@ -69,16 +136,21 @@
 </template>
 
 <script>
+import axios from "axios";
+
 import Confirm from "../components/Confirm.vue";
 import MonitorListItem from "../components/MonitorListItem.vue";
 import MonitorListFilter from "./MonitorListFilter.vue";
 import { getMonitorRelativeURL } from "../util.ts";
+import PingChart from "../components/PingChart.vue";
+
 
 export default {
     components: {
         Confirm,
         MonitorListItem,
         MonitorListFilter,
+        PingChart,
     },
     props: {
         /** Should the scrollbar be shown */
@@ -93,6 +165,10 @@ export default {
             selectAll: false,
             disableSelectAllWatcher: false,
             selectedMonitors: {},
+            customStartDate: "",
+            customEndDate: "",
+            selectedStatuses: [],
+            filteredHeartbeats: [],
             windowTop: 0,
             filterState: {
                 status: null,
@@ -110,11 +186,11 @@ export default {
         boxStyle() {
             if (window.innerWidth > 550) {
                 return {
-                    height: `calc(100vh - 160px + ${this.windowTop}px)`,
+                    height: `calc(100vh - 160px + ${this.windowTop}px)`
                 };
             } else {
                 return {
-                    height: "calc(100vh - 160px)",
+                    height: "calc(100vh - 160px)"
                 };
             }
 
@@ -229,7 +305,7 @@ export default {
          */
         filtersActive() {
             return this.filterState.status != null || this.filterState.active != null || this.filterState.tags != null || this.searchText !== "";
-        }
+        },
     },
     watch: {
         searchText() {
@@ -270,6 +346,15 @@ export default {
         window.removeEventListener("scroll", this.onScroll);
     },
     methods: {
+
+
+
+
+
+
+
+
+
         /** Handle user scroll */
         onScroll() {
             if (window.top.scrollY <= 133) {
@@ -344,7 +429,46 @@ export default {
 
             this.cancelSelectMode();
         },
-    },
+
+
+
+
+        async filterStatusByPeriod() {
+    if (!this.customStartDate || !this.customEndDate || this.selectedStatuses.length === 0) {
+  alert("Veuillez remplir tous les champs."); // ✅ plus sûr
+  return;
+}
+
+
+    try {
+      const response = await axios.get("/api/status-by-period", {
+        params: {
+          start: this.customStartDate,
+          end: this.customEndDate,
+          statuses: this.selectedStatuses.join(",")
+        }
+      });
+
+      if (response.data.success) {
+    this.filteredHeartbeats = response.data.data;
+    console.log("✅ Données récupérées :", this.filteredHeartbeats);
+} else {
+    alert("Erreur API"); // ✅ remplacement simple
+}
+
+
+    }catch (error) {
+  console.error("Erreur API:", error);
+  alert("Erreur lors du chargement des données"); // ✅ version simple qui marche partout
+}
+
+    }
+  }
+        
+
+
+
+    
 };
 </script>
 

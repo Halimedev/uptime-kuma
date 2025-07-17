@@ -65,7 +65,17 @@ const fs = require("fs");
 log.info("server", "Importing 3rd-party libraries");
 
 log.debug("server", "Importing express");
+
+log.debug("server", "Importing express");
 const express = require("express");
+
+
+
+
+
+
+
+
 const expressStaticGzip = require("express-static-gzip");
 log.debug("server", "Importing redbean-node");
 const { R } = require("redbean-node");
@@ -87,6 +97,10 @@ const { UptimeKumaServer } = require("./uptime-kuma-server");
 const server = UptimeKumaServer.getInstance();
 const io = module.exports.io = server.io;
 const app = server.app;
+
+// 2. Ensuite, applique le middleware CORS
+const cors = require("cors");
+app.use(cors());
 
 log.info("server", "Importing this project modules");
 log.debug("server", "Importing Monitor");

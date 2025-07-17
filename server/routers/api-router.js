@@ -558,4 +558,46 @@ router.get("/api/badge/:id/response", cache("5 minutes"), async (request, respon
     }
 });
 
+router.get("/api/status-by-period", async (req, res) => {
+    try {
+        const { start, end, statuses, monitorId } = req.query;
+
+        if (!start || !end || !statuses) {
+            return res.status(400).json({
+                success: false,
+                message: "Paramètres requis : start, end, statuses",
+            });
+        }
+
+        const statusList = statuses.split(",").map(s => parseInt(s.trim(), 10));
+        const placeholders = statusList.map(() => "?").join(",");
+        const monitorCondition = monitorId ? "AND monitor_id = ?" : "";
+
+        const params = [start, end, ...statusList];
+        if (monitorId) params.push(parseInt(monitorId));
+
+        const rows = await R.getAll(
+            `SELECT * FROM heartbeat 
+             WHERE time BETWEEN ? AND ?
+             AND status IN (${placeholders})
+             ${monitorCondition}
+             ORDER BY time ASC`,
+            params
+        );
+
+        return res.json({
+            success: true,
+            data: rows,
+        });
+
+    } catch (error) {
+        console.error("Erreur API /status-by-period:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Erreur interne du serveur.",
+        });
+    }
+});
+
+
 module.exports = router;

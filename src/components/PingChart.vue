@@ -10,10 +10,30 @@
                 </li>
             </ul>
         </div>
+
+              <div class="filter-form mt-4">
+  <label>
+    Début :
+    <input type="date" v-model="customStartDate" />
+  </label>
+  <label class="ms-3">
+    Fin :
+    <input type="date" v-model="customEndDate" />
+  </label>
+  
+  <button class="btn btn-primary ms-3" @click="filtergraphByPeriod">
+    Rechercher
+  </button>
+</div>
+
+
         <div class="chart-wrapper" :class="{ loading : loading}">
             <Line :data="chartData" :options="chartOptions" />
         </div>
     </div>
+    
+
+
 </template>
 
 <script lang="js">
@@ -36,6 +56,15 @@ export default {
             type: Number,
             required: true,
         },
+
+        startDate: {
+        type: String,
+        required: false
+    },
+    endDate: {
+        type: String,
+        required: false
+    },
     },
     data() {
         return {
@@ -55,7 +84,10 @@ export default {
 
             // A heartbeatList for 3h, 6h, 24h, 1w
             // Uses the $root.heartbeatList when value is null
-            heartbeatList: null
+            heartbeatList: null,
+
+            customStartDate: "",
+            customEndDate: "",
         };
     },
     computed: {
@@ -169,13 +201,15 @@ export default {
              [];
 
             heartbeatList
-                .filter(
-                    // Filtering as data gets appended
-                    // not the most efficient, but works for now
-                    (beat) => dayjs.utc(beat.time).tz(this.$root.timezone).isAfter(
-                        dayjs().subtract(Math.max(this.chartPeriodHrs, 6), "hours")
-                    )
-                )
+                                .filter((beat) => {
+                    const beatTime = dayjs.utc(beat.time).tz(this.$root.timezone);
+
+                    const afterStart = this.startDate ? beatTime.isAfter(dayjs(this.startDate).startOf("day")) : true;
+                    const beforeEnd = this.endDate ? beatTime.isBefore(dayjs(this.endDate).endOf("day")) : true;
+
+                    return afterStart && beforeEnd;
+                })
+
                 .map((beat) => {
                     const x = this.$root.datetime(beat.time);
                     pingData.push({
@@ -218,6 +252,50 @@ export default {
             };
         },
     },
+
+
+    methods: {
+    async filtergraphByPeriod() {
+        if (!this.customStartDate || !this.customEndDate) {
+            toast.error("Veuillez sélectionner une date de début et une date de fin.");
+            return;
+        }
+
+        this.loading = true;
+
+        try {
+            const res = await fetch(`http://localhost:3001/api/status-by-period?start=${this.customStartDate}&end=${this.customEndDate}&statuses=1&monitorId=${this.monitorId}`);
+
+            // Vérification du type de réponse
+            const contentType = res.headers.get("content-type");
+            if (!res.ok || !contentType || !contentType.includes("application/json")) {
+                const errorText = await res.text();
+                console.error("⚠️ Réponse non-JSON :", errorText);
+                toast.error("Le serveur a renvoyé une réponse invalide.");
+                this.loading = false;
+                return;
+            }
+
+            const json = await res.json();
+
+            if (!json.success) {
+                toast.error(json.message || "Erreur de récupération des données");
+            } else {
+                this.heartbeatList = json.data;
+                this.chartPeriodHrs = 0; // désactive les périodes prédéfinies
+            }
+        } catch (e) {
+            toast.error("Erreur réseau");
+            console.error("Erreur dans filtergraphByPeriod:", e);
+        }
+
+        this.loading = false;
+    }
+},
+
+
+
+
     watch: {
         // Update chart data when the selected chart period changes
         chartPeriodHrs: function (newPeriod) {
