@@ -282,7 +282,7 @@ export default {
                 toast.error(json.message || "Erreur de récupération des données");
             } else {
                 this.heartbeatList = json.data;
-                this.chartPeriodHrs = 0; // désactive les périodes prédéfinies
+                this.chartPeriodHrs = 0; 
             }
         } catch (e) {
             toast.error("Erreur réseau");

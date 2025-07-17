@@ -458,15 +458,15 @@ export default {
       params: {
         start: this.customStartDate,
         end: this.customEndDate,
-        statuses: this.selectedStatuses.map(s => s.value).join(",") // ✅ CORRIGÉ
+        statuses: this.selectedStatuses.map(s => s.value).join(",") 
       }
     });
 
     if (response.data.success) {
       this.filteredHeartbeats = response.data.data;
-      console.log("✅ Données récupérées :", this.filteredHeartbeats);
+      console.log("Données récupérées :", this.filteredHeartbeats);
     } else {
-      alert("❌ Erreur API : " + (response.data.message || ""));
+      alert("Erreur API : " + (response.data.message || ""));
     }
 
   } catch (error) {
