@@ -18,10 +18,30 @@
                 </li>
             </ul>
         </div>
-        <div class="chart-wrapper" :class="{ loading: loading }">
+
+              <div class="filter-form mt-4">
+  <label>
+    Début :
+    <input type="date" v-model="customStartDate" />
+  </label>
+  <label class="ms-3">
+    Fin :
+    <input type="date" v-model="customEndDate" />
+  </label>
+  
+  <button class="btn btn-primary ms-3" @click="filtergraphByPeriod">
+    Rechercher
+  </button>
+</div>
+
+
+        <div class="chart-wrapper" :class="{ loading : loading}">
             <Line :data="chartData" :options="chartOptions" />
         </div>
     </div>
+    
+
+
 </template>
 
 <script lang="js">
@@ -40,6 +60,15 @@ export default {
             type: Number,
             required: true,
         },
+
+        startDate: {
+        type: String,
+        required: false
+    },
+    endDate: {
+        type: String,
+        required: false
+    },
     },
     data() {
         return {
@@ -58,8 +87,12 @@ export default {
                 168: "1w",
             },
 
-            chartRawData: null,
-            chartDataFetchInterval: null,
+            // A heartbeatList for 3h, 6h, 24h, 1w
+            // Uses the $root.heartbeatList when value is null
+            heartbeatList: null,
+
+            customStartDate: "",
+            customEndDate: "",
         };
     },
     computed: {
@@ -303,58 +336,32 @@ export default {
             let downData = [];  // Down Data for Bar Chart, y-axis is 1 if target is down (red color), under maintenance (blue color) or pending (orange color), 0 if target is up
             let colorData = []; // Color Data for Bar Chart
 
-            let heartbeatList = (this.monitorId in this.$root.heartbeatList && this.$root.heartbeatList[this.monitorId]) || [];
+            let heartbeatList = this.heartbeatList ||
+             (this.monitorId in this.$root.heartbeatList && this.$root.heartbeatList[this.monitorId]) ||
+             [];
 
-            for (const beat of heartbeatList) {
-                const beatTime = this.$root.toDayjs(beat.time);
-                const x = beatTime.format("YYYY-MM-DD HH:mm:ss");
+            heartbeatList
+                                .filter((beat) => {
+                    const beatTime = dayjs.utc(beat.time).tz(this.$root.timezone);
 
-                // Insert empty datapoint to separate big gaps
-                if (lastHeartbeatTime && monitorInterval) {
-                    const diff = Math.abs(beatTime.diff(lastHeartbeatTime));
-                    if (diff > monitorInterval * 1000 * 10) {
-                        // Big gap detected
-                        const gapX = [
-                            lastHeartbeatTime.add(monitorInterval, "second").format("YYYY-MM-DD HH:mm:ss"),
-                            beatTime.subtract(monitorInterval, "second").format("YYYY-MM-DD HH:mm:ss")
-                        ];
+                    const afterStart = this.startDate ? beatTime.isAfter(dayjs(this.startDate).startOf("day")) : true;
+                    const beforeEnd = this.endDate ? beatTime.isBefore(dayjs(this.endDate).endOf("day")) : true;
 
-                        for (const x of gapX) {
-                            pingData.push({
-                                x,
-                                y: null,
-                            });
-                            downData.push({
-                                x,
-                                y: null,
-                            });
-                            colorData.push("#000");
-                        }
+                    return afterStart && beforeEnd;
+                })
 
-                    }
-                }
-
-                pingData.push({
-                    x,
-                    y: beat.status === UP ? beat.ping : null,
+                .map((beat) => {
+                    const x = this.$root.datetime(beat.time);
+                    pingData.push({
+                        x,
+                        y: beat.ping,
+                    });
+                    downData.push({
+                        x,
+                        y: (beat.status === DOWN || beat.status === MAINTENANCE || beat.status === PENDING) ? 1 : 0,
+                    });
+                    colorData.push((beat.status === MAINTENANCE) ? "rgba(23,71,245,0.41)" : ((beat.status === PENDING) ? "rgba(245,182,23,0.41)" : "#DC354568"));
                 });
-                downData.push({
-                    x,
-                    y: (beat.status === DOWN || beat.status === MAINTENANCE || beat.status === PENDING) ? 1 : 0,
-                });
-                switch (beat.status) {
-                    case MAINTENANCE:
-                        colorData.push("rgba(23 ,71, 245, 0.41)");
-                        break;
-                    case PENDING:
-                        colorData.push("rgba(245, 182, 23, 0.41)");
-                        break;
-                    default:
-                        colorData.push("rgba(220, 53, 69, 0.41)");
-                }
-
-                lastHeartbeatTime = beatTime;
-            }
 
             return {
                 datasets: [
@@ -384,104 +391,88 @@ export default {
                 ],
             };
         },
-        getChartDatapointsFromStats() {
-            // Render chart using UptimeCalculator data
-            let lastHeartbeatTime;
-            const monitorInterval = this.$root.monitorList[this.monitorId]?.interval;
+    },
 
-            let avgPingData = [];  // Ping Data for Line Chart, y-axis contains ping time
-            let minPingData = [];  // Ping Data for Line Chart, y-axis contains ping time
-            let maxPingData = [];  // Ping Data for Line Chart, y-axis contains ping time
-            let downData = [];  // Down Data for Bar Chart, y-axis is number of down datapoints in this period
-            let colorData = []; // Color Data for Bar Chart
 
-            const period = parseInt(this.chartPeriodHrs);
-            let aggregatePoints = period > 6 ? 12 : 4;
+    methods: {
+    async filtergraphByPeriod() {
+        if (!this.customStartDate || !this.customEndDate) {
+            toast.error("Veuillez sélectionner une date de début et une date de fin.");
+            return;
+        }
 
-            let aggregateBuffer = [];
+        this.loading = true;
 
-            if (this.chartRawData) {
-                for (const datapoint of this.chartRawData) {
-                    // Empty datapoints are ignored
-                    if (datapoint.up === 0 && datapoint.down === 0 && datapoint.maintenance === 0) {
-                        continue;
-                    }
+        try {
+            const res = await fetch(`http://localhost:3001/api/status-by-period?start=${this.customStartDate}&end=${this.customEndDate}&statuses=1&monitorId=${this.monitorId}`);
 
-                    const beatTime = this.$root.unixToDayjs(datapoint.timestamp);
+            // Vérification du type de réponse
+            const contentType = res.headers.get("content-type");
+            if (!res.ok || !contentType || !contentType.includes("application/json")) {
+                const errorText = await res.text();
+                console.error("⚠️ Réponse non-JSON :", errorText);
+                toast.error("Le serveur a renvoyé une réponse invalide.");
+                this.loading = false;
+                return;
+            }
 
-                    // Insert empty datapoint to separate big gaps
-                    if (lastHeartbeatTime && monitorInterval) {
-                        const diff = Math.abs(beatTime.diff(lastHeartbeatTime));
-                        const oneSecond = 1000;
-                        const oneMinute = oneSecond * 60;
-                        const oneHour = oneMinute * 60;
-                        if ((period <= 24 && diff > Math.max(oneMinute * 10, monitorInterval * oneSecond * 10)) ||
-                            (period > 24 && diff > Math.max(oneHour * 10, monitorInterval * oneSecond * 10))) {
-                            // Big gap detected
-                            // Clear the aggregate buffer
-                            if (aggregateBuffer.length > 0) {
-                                const average = this.getAverage(aggregateBuffer);
-                                this.pushDatapoint(average, avgPingData, minPingData, maxPingData, downData, colorData);
-                                aggregateBuffer = [];
-                            }
+            const json = await res.json();
 
-                            const gapX = [
-                                lastHeartbeatTime.subtract(monitorInterval, "second").format("YYYY-MM-DD HH:mm:ss"),
-                                this.$root.unixToDateTime(datapoint.timestamp + 60),
-                            ];
+            if (!json.success) {
+                toast.error(json.message || "Erreur de récupération des données");
+            } else {
+                this.heartbeatList = json.data;
+                this.chartPeriodHrs = 0; 
+            }
+        } catch (e) {
+            toast.error("Erreur réseau");
+            console.error("Erreur dans filtergraphByPeriod:", e);
+        }
 
-                            for (const x of gapX) {
-                                avgPingData.push({
-                                    x,
-                                    y: null,
-                                });
-                                minPingData.push({
-                                    x,
-                                    y: null,
-                                });
-                                maxPingData.push({
-                                    x,
-                                    y: null,
-                                });
-                                downData.push({
-                                    x,
-                                    y: null,
-                                });
-                                colorData.push("#000");
-                            }
+        this.loading = false;
+    }
+},
 
-                        }
-                    }
 
-                    if (datapoint.up > 0 && this.chartRawData.length > aggregatePoints * 2) {
-                        // Aggregate Up data using a sliding window
-                        aggregateBuffer.push(datapoint);
 
-                        if (aggregateBuffer.length === aggregatePoints) {
-                            const average = this.getAverage(aggregateBuffer);
-                            this.pushDatapoint(average, avgPingData, minPingData, maxPingData, downData, colorData);
-                            // Remove the first half of the buffer
-                            aggregateBuffer = aggregateBuffer.slice(Math.floor(aggregatePoints / 2));
-                        }
+
+    watch: {
+        // Update chart data when the selected chart period changes
+        chartPeriodHrs: function (newPeriod) {
+
+            // eslint-disable-next-line eqeqeq
+            if (newPeriod == "0") {
+                this.heartbeatList = null;
+                this.$root.storage().removeItem(`chart-period-${this.monitorId}`);
+            } else {
+                this.loading = true;
+
+                this.$root.getMonitorBeats(this.monitorId, newPeriod, (res) => {
+                    if (!res.ok) {
+                        toast.error(res.msg);
                     } else {
-                        // datapoint is fully down or too few datapoints, no need to aggregate
-                        // Clear the aggregate buffer
-                        if (aggregateBuffer.length > 0) {
-                            const average = this.getAverage(aggregateBuffer);
-                            this.pushDatapoint(average, avgPingData, minPingData, maxPingData, downData, colorData);
-                            aggregateBuffer = [];
-                        }
-
-                        this.pushDatapoint(datapoint, avgPingData, minPingData, maxPingData, downData, colorData);
+                        this.heartbeatList = res.data;
+                        this.$root.storage()[`chart-period-${this.monitorId}`] = newPeriod;
                     }
+                    this.loading = false;
+                });
+            }
+        }
+    },
+    created() {
+        // Setup Watcher on the root heartbeatList,
+        // And mirror latest change to this.heartbeatList
+        this.$watch(() => this.$root.heartbeatList[this.monitorId],
+            (heartbeatList) => {
 
-                    lastHeartbeatTime = beatTime;
-                }
-                // Clear the aggregate buffer if there are still datapoints
-                if (aggregateBuffer.length > 0) {
-                    const average = this.getAverage(aggregateBuffer);
-                    this.pushDatapoint(average, avgPingData, minPingData, maxPingData, downData, colorData);
-                    aggregateBuffer = [];
+                log.debug("ping_chart", `this.chartPeriodHrs type ${typeof this.chartPeriodHrs}, value: ${this.chartPeriodHrs}`);
+
+                // eslint-disable-next-line eqeqeq
+                if (this.chartPeriodHrs != "0") {
+                    const newBeat = heartbeatList.at(-1);
+                    if (newBeat && dayjs.utc(newBeat.time) > dayjs.utc(this.heartbeatList.at(-1)?.time)) {
+                        this.heartbeatList.push(heartbeatList.at(-1));
+                    }
                 }
             }
 

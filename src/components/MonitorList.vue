@@ -45,7 +45,72 @@
                 </span>
             </div>
         </div>
-        <div ref="monitorList" class="monitor-list" :class="{ scrollbar: scrollbar }" :style="monitorListStyle" data-testid="monitor-list">
+
+           <div class="filter-form mt-4">
+  <label>
+    Début :
+    <input type="date" v-model="customStartDate" />
+  </label>
+  <label class="ms-3">
+    Fin :
+    <input type="date" v-model="customEndDate" />
+  </label>
+  <label class="ms-3">
+    Statuts :
+    <multiselect
+      v-model="selectedStatuses"
+      :options="statusOptions"
+      :multiple="true"
+      :close-on-select="false"
+      :clear-on-select="false"
+      :preserve-search="true"
+      placeholder="Sélectionnez un ou plusieurs statuts"
+      label="name"
+      track-by="value"
+    />
+  </label>
+  <button class="btn btn-primary ms-3" @click="filterStatusByPeriod">
+    Rechercher
+  </button>
+</div>
+ 
+<table class="table table-bordered mt-4" v-if="filteredHeartbeats.length">
+  <thead>
+    <tr>
+      <th>Date/Heure</th>
+      <th>Statut</th>
+      <th>Message</th>
+      <th>Monitor ID</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr v-for="hb in filteredHeartbeats" :key="hb.id">
+      <td>{{ hb.time }}</td>
+      <td>
+        <span v-if="hb.status === 0">🔴 DOWN</span>
+        <span v-else-if="hb.status === 1">🟢 UP</span>
+        <span v-else-if="hb.status === 2">🟡 PENDING</span>
+        <span v-else-if="hb.status === 3">🟣 MAINTENANCE</span>
+      </td>
+      <td>{{ hb.msg }}</td>
+      <td>{{ hb.monitor_id }}</td>
+    </tr>
+  </tbody>
+</table>
+
+<PingChart
+  v-if="filteredHeartbeats.length"
+  :monitor-id="filteredHeartbeats[0].monitor_id"  
+  :start-date="customStartDate"
+  :end-date="customEndDate"
+/>
+
+
+
+
+
+
+        <div ref="monitorList" class="monitor-list" :class="{ scrollbar: scrollbar }" :style="monitorListStyle">
             <div v-if="Object.keys($root.monitorList).length === 0" class="text-center mt-3">
                 {{ $t("No Monitors, please") }} <router-link to="/add">{{ $t("add one") }}</router-link>
             </div>
@@ -63,6 +128,12 @@
             />
         </div>
     </div>
+     
+
+
+
+
+
 
     <Confirm ref="confirmPause" :yes-text="$t('Yes')" :no-text="$t('No')" @yes="pauseSelected">
         {{ $t("pauseMonitorMsg") }}
@@ -70,16 +141,25 @@
 </template>
 
 <script>
+import axios from "axios";
+import Multiselect from "vue-multiselect";
+
+
 import Confirm from "../components/Confirm.vue";
 import MonitorListItem from "../components/MonitorListItem.vue";
 import MonitorListFilter from "./MonitorListFilter.vue";
 import { getMonitorRelativeURL } from "../util.ts";
+import PingChart from "../components/PingChart.vue";
+
 
 export default {
     components: {
         Confirm,
         MonitorListItem,
         MonitorListFilter,
+        PingChart,
+        Multiselect, 
+
     },
     props: {
         /** Should the scrollbar be shown */
@@ -94,6 +174,16 @@ export default {
             selectAll: false,
             disableSelectAllWatcher: false,
             selectedMonitors: {},
+            customStartDate: "",
+            customEndDate: "",
+            selectedStatuses: [],
+            selectedStatuses: [],
+        statusOptions: [ // 👈 Ajout ici
+            { name: "DOWN", value: 0 },
+            { name: "UP", value: 1 },
+            { name: "PENDING", value: 2 },
+            { name: "MAINTENANCE", value: 3 },],
+            filteredHeartbeats: [],
             windowTop: 0,
             filterState: {
                 status: null,
@@ -112,11 +202,11 @@ export default {
         boxStyle() {
             if (window.innerWidth > 550) {
                 return {
-                    height: `calc(100vh - 160px + ${this.windowTop}px)`,
+                    height: `calc(100vh - 160px + ${this.windowTop}px)`
                 };
             } else {
                 return {
-                    height: "calc(100vh - 160px)",
+                    height: "calc(100vh - 160px)"
                 };
             }
 
@@ -170,7 +260,7 @@ export default {
          */
         filtersActive() {
             return this.filterState.status != null || this.filterState.active != null || this.filterState.tags != null || this.searchText !== "";
-        }
+        },
     },
     watch: {
         searchText() {
@@ -211,10 +301,16 @@ export default {
         window.removeEventListener("scroll", this.onScroll);
     },
     methods: {
-        /**
-         * Handle user scroll
-         * @returns {void}
-         */
+
+
+
+
+
+
+
+
+
+        /** Handle user scroll */
         onScroll() {
             if (window.top.scrollY <= 133) {
                 this.windowTop = window.top.scrollY;
@@ -306,91 +402,51 @@ export default {
 
             this.cancelSelectMode();
         },
-        /**
-         * Whether a monitor should be displayed based on the filters
-         * @param {object} monitor Monitor to check
-         * @returns {boolean} Should the monitor be displayed
-         */
-        filterFunc(monitor) {
-            // Group monitors bypass filter if at least 1 of children matched
-            if (monitor.type === "group") {
-                const children = Object.values(this.$root.monitorList).filter(m => m.parent === monitor.id);
-                if (children.some((child, index, children) => this.filterFunc(child))) {
-                    return true;
-                }
-            }
 
-            // filter by search text
-            // finds monitor name, tag name or tag value
-            let searchTextMatch = true;
-            if (this.searchText !== "") {
-                const loweredSearchText = this.searchText.toLowerCase();
-                searchTextMatch =
-                    monitor.name.toLowerCase().includes(loweredSearchText)
-                    || monitor.tags.find(tag => tag.name.toLowerCase().includes(loweredSearchText)
-                        || tag.value?.toLowerCase().includes(loweredSearchText));
-            }
 
-            // filter by status
-            let statusMatch = true;
-            if (this.filterState.status != null && this.filterState.status.length > 0) {
-                if (monitor.id in this.$root.lastHeartbeatList && this.$root.lastHeartbeatList[monitor.id]) {
-                    monitor.status = this.$root.lastHeartbeatList[monitor.id].status;
-                }
-                statusMatch = this.filterState.status.includes(monitor.status);
-            }
 
-            // filter by active
-            let activeMatch = true;
-            if (this.filterState.active != null && this.filterState.active.length > 0) {
-                activeMatch = this.filterState.active.includes(monitor.active);
-            }
 
-            // filter by tags
-            let tagsMatch = true;
-            if (this.filterState.tags != null && this.filterState.tags.length > 0) {
-                tagsMatch = monitor.tags.map(tag => tag.tag_id) // convert to array of tag IDs
-                    .filter(monitorTagId => this.filterState.tags.includes(monitorTagId)) // perform Array Intersaction between filter and monitor's tags
-                    .length > 0;
-            }
+        async filterStatusByPeriod() {
+  if (!this.customStartDate || !this.customEndDate || this.selectedStatuses.length === 0) {
+    alert("Veuillez remplir tous les champs.");
+    return;
+  }
 
-            return searchTextMatch && statusMatch && activeMatch && tagsMatch;
-        },
-        /**
-         * Function used in Array.sort to order monitors in a list.
-         * @param {*} m1 monitor 1
-         * @param {*} m2 monitor 2
-         * @returns {number} -1, 0 or 1
-         */
-        sortFunc(m1, m2) {
-            if (m1.active !== m2.active) {
-                if (m1.active === false) {
-                    return 1;
-                }
+  try {
+    const response = await axios.get("/api/status-by-period", {
+      params: {
+        start: this.customStartDate,
+        end: this.customEndDate,
+        statuses: this.selectedStatuses.map(s => s.value).join(",") 
+      }
+    });
 
-                if (m2.active === false) {
-                    return -1;
-                }
-            }
+    if (response.data.success) {
+      this.filteredHeartbeats = response.data.data;
+      console.log("Données récupérées :", this.filteredHeartbeats);
+    } else {
+      alert("Erreur API : " + (response.data.message || ""));
+    }
 
-            if (m1.weight !== m2.weight) {
-                if (m1.weight > m2.weight) {
-                    return -1;
-                }
+  } catch (error) {
+    console.error("Erreur API:", error);
+    alert("Erreur lors du chargement des données");
+  }
+}
 
-                if (m1.weight < m2.weight) {
-                    return 1;
-                }
-            }
+  }
+        
 
-            return m1.name.localeCompare(m2.name);
-        }
-    },
+
+
+    
 };
 </script>
 
 <style lang="scss" scoped>
 @import "../assets/vars.scss";
+@import "vue-multiselect/dist/vue-multiselect.css";
+
 
 .shadow-box {
     height: calc(100vh - 150px);

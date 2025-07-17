@@ -61,10 +61,20 @@ if (process.env.UPTIME_KUMA_WS_ORIGIN_CHECK === "bypass") {
 const checkVersion = require("./check-version");
 log.info("server", "Uptime Kuma Version: " + checkVersion.version);
 
-log.info("server", "Loading modules");
+log.info("server", "Importing 3rd-party libraries");
+
+log.debug("server", "Importing express");
 
 log.debug("server", "Importing express");
 const express = require("express");
+
+
+
+
+
+
+
+
 const expressStaticGzip = require("express-static-gzip");
 log.debug("server", "Importing redbean-node");
 const { R } = require("redbean-node");
@@ -85,6 +95,11 @@ const server = UptimeKumaServer.getInstance();
 const io = module.exports.io = server.io;
 const app = server.app;
 
+// 2. Ensuite, applique le middleware CORS
+const cors = require("cors");
+app.use(cors());
+
+log.info("server", "Importing this project modules");
 log.debug("server", "Importing Monitor");
 const Monitor = require("./model/monitor");
 const User = require("./model/user");

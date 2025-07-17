@@ -574,58 +574,46 @@ router.get("/api/badge/:id/response", cache("5 minutes"), async (request, respon
     }
 });
 
-/**
- * Determines the status of the next beat in the push route handling.
- * @param {string} status - The reported new status.
- * @param {object} previousHeartbeat - The previous heartbeat object.
- * @param {number} maxretries - The maximum number of retries allowed.
- * @param {boolean} isUpsideDown - Indicates if the monitor is upside down.
- * @param {object} bean - The new heartbeat object.
- * @returns {void}
- */
-function determineStatus(status, previousHeartbeat, maxretries, isUpsideDown, bean) {
-    if (isUpsideDown) {
-        status = flipStatus(status);
-    }
+router.get("/api/status-by-period", async (req, res) => {
+    try {
+        const { start, end, statuses, monitorId } = req.query;
 
-    if (previousHeartbeat) {
-        if (previousHeartbeat.status === UP && status === DOWN) {
-            // Going Down
-            if ((maxretries > 0) && (previousHeartbeat.retries < maxretries)) {
-                // Retries available
-                bean.retries = previousHeartbeat.retries + 1;
-                bean.status = PENDING;
-            } else {
-                // No more retries
-                bean.retries = 0;
-                bean.status = DOWN;
-            }
-        } else if (previousHeartbeat.status === PENDING && status === DOWN && previousHeartbeat.retries < maxretries) {
-            // Retries available
-            bean.retries = previousHeartbeat.retries + 1;
-            bean.status = PENDING;
-        } else {
-            // No more retries or not pending
-            if (status === DOWN) {
-                bean.retries = previousHeartbeat.retries + 1;
-                bean.status = status;
-            } else {
-                bean.retries = 0;
-                bean.status = status;
-            }
+        if (!start || !end || !statuses) {
+            return res.status(400).json({
+                success: false,
+                message: "Paramètres requis : start, end, statuses",
+            });
         }
-    } else {
-        // First beat?
-        if (status === DOWN && maxretries > 0) {
-            // Retries available
-            bean.retries = 1;
-            bean.status = PENDING;
-        } else {
-            // Retires not enabled
-            bean.retries = 0;
-            bean.status = status;
-        }
+
+        const statusList = statuses.split(",").map(s => parseInt(s.trim(), 10));
+        const placeholders = statusList.map(() => "?").join(",");
+        const monitorCondition = monitorId ? "AND monitor_id = ?" : "";
+
+        const params = [start, end, ...statusList];
+        if (monitorId) params.push(parseInt(monitorId));
+
+        const rows = await R.getAll(
+            `SELECT * FROM heartbeat 
+             WHERE time BETWEEN ? AND ?
+             AND status IN (${placeholders})
+             ${monitorCondition}
+             ORDER BY time ASC`,
+            params
+        );
+
+        return res.json({
+            success: true,
+            data: rows,
+        });
+
+    } catch (error) {
+        console.error("Erreur API /status-by-period:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Erreur interne du serveur.",
+        });
     }
-}
+});
+
 
 module.exports = router;
