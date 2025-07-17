@@ -57,18 +57,22 @@
   </label>
   <label class="ms-3">
     Statuts :
-    <select multiple v-model="selectedStatuses">
-      <option :value="0">DOWN</option>
-      <option :value="1">UP</option>
-      <option :value="2">PENDING</option>
-      <option :value="3">MAINTENANCE</option>
-    </select>
+    <multiselect
+      v-model="selectedStatuses"
+      :options="statusOptions"
+      :multiple="true"
+      :close-on-select="false"
+      :clear-on-select="false"
+      :preserve-search="true"
+      placeholder="Sélectionnez un ou plusieurs statuts"
+      label="name"
+      track-by="value"
+    />
   </label>
   <button class="btn btn-primary ms-3" @click="filterStatusByPeriod">
     Rechercher
   </button>
 </div>
-
  
 <table class="table table-bordered mt-4" v-if="filteredHeartbeats.length">
   <thead>
@@ -137,6 +141,8 @@
 
 <script>
 import axios from "axios";
+import Multiselect from "vue-multiselect";
+
 
 import Confirm from "../components/Confirm.vue";
 import MonitorListItem from "../components/MonitorListItem.vue";
@@ -151,6 +157,8 @@ export default {
         MonitorListItem,
         MonitorListFilter,
         PingChart,
+        Multiselect, 
+
     },
     props: {
         /** Should the scrollbar be shown */
@@ -168,6 +176,12 @@ export default {
             customStartDate: "",
             customEndDate: "",
             selectedStatuses: [],
+            selectedStatuses: [],
+        statusOptions: [ // 👈 Ajout ici
+            { name: "DOWN", value: 0 },
+            { name: "UP", value: 1 },
+            { name: "PENDING", value: 2 },
+            { name: "MAINTENANCE", value: 3 },],
             filteredHeartbeats: [],
             windowTop: 0,
             filterState: {
@@ -434,35 +448,33 @@ export default {
 
 
         async filterStatusByPeriod() {
-    if (!this.customStartDate || !this.customEndDate || this.selectedStatuses.length === 0) {
-  alert("Veuillez remplir tous les champs."); // ✅ plus sûr
-  return;
-}
+  if (!this.customStartDate || !this.customEndDate || this.selectedStatuses.length === 0) {
+    alert("Veuillez remplir tous les champs.");
+    return;
+  }
 
+  try {
+    const response = await axios.get("/api/status-by-period", {
+      params: {
+        start: this.customStartDate,
+        end: this.customEndDate,
+        statuses: this.selectedStatuses.map(s => s.value).join(",") // ✅ CORRIGÉ
+      }
+    });
 
-    try {
-      const response = await axios.get("/api/status-by-period", {
-        params: {
-          start: this.customStartDate,
-          end: this.customEndDate,
-          statuses: this.selectedStatuses.join(",")
-        }
-      });
-
-      if (response.data.success) {
-    this.filteredHeartbeats = response.data.data;
-    console.log("✅ Données récupérées :", this.filteredHeartbeats);
-} else {
-    alert("Erreur API"); // ✅ remplacement simple
-}
-
-
-    }catch (error) {
-  console.error("Erreur API:", error);
-  alert("Erreur lors du chargement des données"); // ✅ version simple qui marche partout
-}
-
+    if (response.data.success) {
+      this.filteredHeartbeats = response.data.data;
+      console.log("✅ Données récupérées :", this.filteredHeartbeats);
+    } else {
+      alert("❌ Erreur API : " + (response.data.message || ""));
     }
+
+  } catch (error) {
+    console.error("Erreur API:", error);
+    alert("Erreur lors du chargement des données");
+  }
+}
+
   }
         
 
@@ -474,6 +486,8 @@ export default {
 
 <style lang="scss" scoped>
 @import "../assets/vars.scss";
+@import "vue-multiselect/dist/vue-multiselect.css";
+
 
 .shadow-box {
     height: calc(100vh - 150px);
