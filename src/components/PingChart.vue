@@ -256,41 +256,69 @@ export default {
 
     methods: {
     async filtergraphByPeriod() {
-        if (!this.customStartDate || !this.customEndDate) {
-            toast.error("Veuillez sélectionner une date de début et une date de fin.");
-            return;
-        }
+  // Vérification des champs obligatoires
+  if (!this.customStartDate || !this.customEndDate) {
+    toast.error("Veuillez sélectionner une date de début et une date de fin.");
+    return;
+  }
 
-        this.loading = true;
+  const start = new Date(this.customStartDate);
+  const end = new Date(this.customEndDate);
 
-        try {
-            const res = await fetch(`http://localhost:3001/api/status-by-period?start=${this.customStartDate}&end=${this.customEndDate}&statuses=1&monitorId=${this.monitorId}`);
+  // Vérification que la date de fin n'est pas antérieure à la date de début
+  if (end < start) {
+    toast.error("La date de fin ne peut pas être antérieure à la date de début.");
+    return;
+  }
 
-            // Vérification du type de réponse
-            const contentType = res.headers.get("content-type");
-            if (!res.ok || !contentType || !contentType.includes("application/json")) {
-                const errorText = await res.text();
-                console.error("⚠️ Réponse non-JSON :", errorText);
-                toast.error("Le serveur a renvoyé une réponse invalide.");
-                this.loading = false;
-                return;
-            }
+  // Optionnel : limiter la période à 1 an maximum pour éviter surcharge
+  const maxPeriodDays = 365;
+  const diffTime = end.getTime() - start.getTime();
+  const diffDays = diffTime / (1000 * 3600 * 24);
+  if (diffDays > maxPeriodDays) {
+    toast.error(`La période ne peut pas dépasser ${maxPeriodDays} jours.`);
+    return;
+  }
 
-            const json = await res.json();
+  this.loading = true;
 
-            if (!json.success) {
-                toast.error(json.message || "Erreur de récupération des données");
-            } else {
-                this.heartbeatList = json.data;
-                this.chartPeriodHrs = 0; 
-            }
-        } catch (e) {
-            toast.error("Erreur réseau");
-            console.error("Erreur dans filtergraphByPeriod:", e);
-        }
+  try {
+    const url = `http://localhost:3001/api/status-by-period?start=${this.customStartDate}&end=${this.customEndDate}&statuses=1&monitorId=${this.monitorId}`;
+    const res = await fetch(url);
 
-        this.loading = false;
+    // Vérification du type de réponse
+    const contentType = res.headers.get("content-type");
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("Erreur serveur :", errorText);
+      toast.error("Le serveur a renvoyé une erreur.");
+      this.loading = false;
+      return;
     }
+    if (!contentType || !contentType.includes("application/json")) {
+      const errorText = await res.text();
+      console.error("Réponse non-JSON :", errorText);
+      toast.error("Le serveur a renvoyé une réponse invalide.");
+      this.loading = false;
+      return;
+    }
+
+    const json = await res.json();
+
+    if (!json.success) {
+      toast.error(json.message || "Erreur lors de la récupération des données.");
+    } else {
+      this.heartbeatList = json.data;
+      this.chartPeriodHrs = 0; 
+    }
+  } catch (e) {
+    toast.error("Erreur réseau. Veuillez vérifier votre connexion.");
+    console.error("Erreur dans filtergraphByPeriod:", e);
+  } finally {
+    this.loading = false;
+  }
+}
+
 },
 
 

@@ -73,6 +73,10 @@
     Rechercher
   </button>
 </div>
+<div v-if="noResult" class="text-center text-danger mt-4">
+  Aucun résultat trouvé pour les critères sélectionnés.
+</div>
+
  
 <table class="table table-bordered mt-4" v-if="filteredHeartbeats.length">
   <thead>
@@ -168,28 +172,30 @@ export default {
     },
     data() {
         return {
-            searchText: "",
-            selectMode: false,
-            selectAll: false,
-            disableSelectAllWatcher: false,
-            selectedMonitors: {},
-            customStartDate: "",
-            customEndDate: "",
-            selectedStatuses: [],
-            selectedStatuses: [],
-        statusOptions: [ // 👈 Ajout ici
-            { name: "DOWN", value: 0 },
-            { name: "UP", value: 1 },
-            { name: "PENDING", value: 2 },
-            { name: "MAINTENANCE", value: 3 },],
-            filteredHeartbeats: [],
-            windowTop: 0,
-            filterState: {
-                status: null,
-                active: null,
-                tags: null,
-            }
-        };
+    searchText: "",
+    selectMode: false,
+    selectAll: false,
+    disableSelectAllWatcher: false,
+    selectedMonitors: {},
+    customStartDate: "",
+    customEndDate: "",
+    selectedStatuses: [],
+    statusOptions: [
+        { name: "DOWN", value: 0 },
+        { name: "UP", value: 1 },
+        { name: "PENDING", value: 2 },
+        { name: "MAINTENANCE", value: 3 }
+    ],
+    filteredHeartbeats: [],
+    windowTop: 0,
+    filterState: {
+        status: null,
+        active: null,
+        tags: null
+    },
+    noResult: false 
+};
+
     },
     computed: {
         /**
@@ -448,32 +454,49 @@ export default {
 
 
         async filterStatusByPeriod() {
-  if (!this.customStartDate || !this.customEndDate || this.selectedStatuses.length === 0) {
-    alert("Veuillez remplir tous les champs.");
-    return;
-  }
-
-  try {
-    const response = await axios.get("/api/status-by-period", {
-      params: {
-        start: this.customStartDate,
-        end: this.customEndDate,
-        statuses: this.selectedStatuses.map(s => s.value).join(",") 
-      }
-    });
-
-    if (response.data.success) {
-      this.filteredHeartbeats = response.data.data;
-      console.log("Données récupérées :", this.filteredHeartbeats);
-    } else {
-      alert("Erreur API : " + (response.data.message || ""));
+    // Vérification des champs requis
+    if (!this.customStartDate || !this.customEndDate) {
+        alert("Veuillez sélectionner une date de début et une date de fin.");
+        return;
     }
 
-  } catch (error) {
-    console.error("Erreur API:", error);
-    alert("Erreur lors du chargement des données");
-  }
+    const start = new Date(this.customStartDate);
+    const end = new Date(this.customEndDate);
+
+    if (end < start) {
+        alert("La date de fin ne peut pas être antérieure à la date de début.");
+        return;
+    }
+
+    if (this.selectedStatuses.length === 0) {
+        alert("Veuillez sélectionner au moins un statut.");
+        return;
+    }
+
+    try {
+        const response = await axios.get("/api/status-by-period", {
+            params: {
+                start: this.customStartDate,
+                end: this.customEndDate,
+                statuses: this.selectedStatuses.map(s => s.value).join(",")
+            }
+        });
+
+        if (response.data.success) {
+            this.filteredHeartbeats = response.data.data;
+
+            this.noResult = this.filteredHeartbeats.length === 0;
+            console.log("Données récupérées :", this.filteredHeartbeats);
+        } else {
+            alert("Erreur API : " + (response.data.message || ""));
+        }
+
+    } catch (error) {
+        console.error("Erreur API:", error);
+        alert("Erreur lors du chargement des données.");
+    }
 }
+
 
   }
         
