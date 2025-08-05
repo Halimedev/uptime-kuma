@@ -45,15 +45,15 @@
                 </span>
             </div>
         </div>
-
+<!--
            <div class="filter-form mt-4">
   <label>
     Début :
-    <input type="date" v-model="customStartDate" />
+    <input type="date" v-model="customStartDate" class="form-control"/>
   </label>
   <label class="ms-3">
     Fin :
-    <input type="date" v-model="customEndDate" />
+    <input type="date" v-model="customEndDate" class="form-control"/>
   </label>
   <label class="ms-3">
     Statuts :
@@ -91,9 +91,9 @@
     <tr v-for="hb in filteredHeartbeats" :key="hb.id">
       <td>{{ hb.time }}</td>
       <td>
-        <span v-if="hb.status === 0">🔴 DOWN</span>
-        <span v-else-if="hb.status === 1">🟢 UP</span>
-        <span v-else-if="hb.status === 2">🟡 PENDING</span>
+        <span v-if="hb.status === 0">🔴 Hors Ligne</span>
+        <span v-else-if="hb.status === 1">🟢 En ligne</span>
+        <span v-else-if="hb.status === 2">🟡 En attente</span>
         <span v-else-if="hb.status === 3">🟣 MAINTENANCE</span>
       </td>
       <td>{{ hb.msg }}</td>
@@ -107,7 +107,7 @@
   :monitor-id="filteredHeartbeats[0].monitor_id"  
   :start-date="customStartDate"
   :end-date="customEndDate"
-/>
+/>-->
 
 
 
@@ -366,12 +366,6 @@ export default {
         window.removeEventListener("scroll", this.onScroll);
     },
     methods: {
-
-
-
-
-
-
 
 
 
