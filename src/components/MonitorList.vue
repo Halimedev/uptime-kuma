@@ -131,12 +131,7 @@
             />
         </div>
     </div>
-     
-
-
-
-
-
+    
 
     <Confirm ref="confirmPause" :yes-text="$t('Yes')" :no-text="$t('No')" @yes="pauseSelected">
         {{ $t("pauseMonitorMsg") }}

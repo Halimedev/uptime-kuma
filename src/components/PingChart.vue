@@ -11,14 +11,14 @@
             </ul>
         </div>
 
-              <div class="filter-form mt-4">
+              <div v-if="chartPeriodHrs === 'custom'" class="filter-form mt-4">
   <label>
-    Début :
-    <input type="date" v-model="customStartDate" />
+    
+    <input type="date" v-model="customStartDate" class="form-control"/>
   </label>
   <label class="ms-3">
-    Fin :
-    <input type="date" v-model="customEndDate" />
+    
+    <input type="date" v-model="customEndDate" class="form-control"/>
   </label>
   
   <button class="btn btn-primary ms-3" @click="filtergraphByPeriod">
@@ -80,6 +80,7 @@ export default {
                 6: "6h",
                 24: "24h",
                 168: "1w",
+                custom:"Personnaliser"
             },
 
             // A heartbeatList for 3h, 6h, 24h, 1w

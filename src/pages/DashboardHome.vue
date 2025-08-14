@@ -31,17 +31,17 @@
             </div>
 
             <div class="filter-form mt-4 mx-auto" >
-                <h1>Filtre des moniteurs par périodes</h1>
+                
   <label>
-    Début :
+
     <input type="date" v-model="customStartDate" class="form-control"/>
   </label>
   <label class="ms-3">
-    Fin :
+
     <input type="date" v-model="customEndDate" class="form-control"/>
   </label>
   <label class="ms-3">
-    Statuts :
+    
     <multiselect
       v-model="selectedStatuses"
       :options="statusOptions"
@@ -66,14 +66,16 @@
 <table class="table table-bordered mt-4" v-if="paginatedFilteredHeartbeats.length">
   <thead>
     <tr>
+        <th>Nom du moniteur</th>
+        <th>Statut</th>
       <th>Date/Heure</th>
-      <th>Statut</th>
+      
       <th>Message</th>
-      <th>Monitor ID</th>
+      
     </tr>
   </thead>
   <tbody>
-    <tr v-for="hb in paginatedFilteredHeartbeats" :key="hb.id">
+    <!--<tr v-for="hb in paginatedFilteredHeartbeats" :key="hb.id">
       <td>{{ hb.time }}</td>
       <td>
         <span v-if="hb.status === 0">🔴 Hors Ligne</span>
@@ -83,7 +85,20 @@
       </td>
       <td>{{ hb.msg }}</td>
       <td>{{ hb.monitor_id }}</td>
-    </tr>
+      <td><router-link :to="`/dashboard/${beat.monitorID}`">{{ beat.name }}</router-link></td>
+    </tr>-->
+
+    <tr v-for="(beat, index) in displayedRecords" :key="index" :class="{ 'shadow-box': $root.windowWidth <= 550 }">
+                            <td><router-link :to="`/dashboard/${beat.monitorID}`">{{ beat.name }}</router-link></td>
+                            <td><Status :status="beat.status" /></td>
+                            <td :class="{ 'border-0': !beat.msg }"><Datetime :value="beat.time" /></td>
+                            <td class="border-0">{{ beat.msg }}</td>
+                        </tr>
+                        <tr v-if="importantHeartBeatList.length === 0">
+                            <td colspan="4">{{ $t("No important events") }}</td>
+                        </tr>
+
+
   </tbody>
 </table>
 
