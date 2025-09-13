@@ -318,6 +318,11 @@ export default {
   } finally {
     this.loading = false;
   }
+
+  this.$emit("update-custom-dates", {
+            start: this.customStartDate,
+            end: this.customEndDate
+        });
 }
 
 },

@@ -69,7 +69,6 @@
         <th>Nom du moniteur</th>
         <th>Statut</th>
       <th>Date/Heure</th>
-      
       <th>Message</th>
       
     </tr>

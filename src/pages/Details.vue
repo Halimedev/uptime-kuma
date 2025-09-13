@@ -88,14 +88,53 @@
                             </a>
                         </span>
                     </div>
-                    <div v-if="monitor.type !== 'group'" class="col-12 col-sm col row d-flex align-items-center d-sm-block">
+
+
+
+                   <!-- <div v-if="monitor.type !== 'group'" class="col-12 col-sm col row d-flex align-items-center d-sm-block">
                         <h4 class="col-4 col-sm-12">{{ pingTitle(true) }}</h4>
                         <p class="col-4 col-sm-12 mb-0 mb-sm-2">(24{{ $t("-hour") }})</p>
                         <span class="col-4 col-sm-12 num">
                             <CountUp :value="avgPing" />
                         </span>
                     </div>
-                    <div class="col-12 col-sm col row d-flex align-items-center d-sm-block">
+
+
+                                    <div v-if="monitor.type !== 'group'" class="col-12 col-sm col row d-flex align-items-center d-sm-block">
+                    <h4 class="col-4 col-sm-12">{{ pingTitle(true) }}</h4>
+                    <p class="col-4 col-sm-12 mb-0 mb-sm-2">
+                        ({{ customDurationHours }}{{ $t("-hour") }})
+                    </p>
+                    <span class="col-4 col-sm-12 num">
+                        <CountUp :value="avgPingCustom" />
+                    </span>
+                </div> -->
+
+
+
+
+                <div class="col-12 col-sm col row d-flex align-items-center d-sm-block">
+    <h4 class="col-4 col-sm-12">{{ $t("Uptime") }}</h4>
+    <p class="col-4 col-sm-12 mb-0 mb-sm-2">
+        ({{ customDurationHours }}{{ $t("-hour") }})
+        
+    </p>
+    <span class="col-4 col-sm-12 num">
+        
+        <Uptime :monitor="monitor" :type="24" />
+    </span>
+</div>
+
+
+
+
+
+
+
+
+
+
+                   <!-- <div class="col-12 col-sm col row d-flex align-items-center d-sm-block">
                         <h4 class="col-4 col-sm-12">{{ $t("Uptime") }}</h4>
                         <p class="col-4 col-sm-12 mb-0 mb-sm-2">(24{{ $t("-hour") }})</p>
                         <span class="col-4 col-sm-12 num">
@@ -108,7 +147,20 @@
                         <span class="col-4 col-sm-12 num">
                             <Uptime :monitor="monitor" type="720" />
                         </span>
-                    </div>
+                    </div>-->
+
+
+                     <div class="col-12 col-sm col row d-flex align-items-center d-sm-block">
+    <h4 class="col-4 col-sm-12">{{ $t("Uptime") }}</h4>
+    <p class="col-4 col-sm-12 mb-0 mb-sm-2">
+        ({{ customDurationDays }}{{ $t("-day") }})
+       
+    </p>
+    <span class="col-4 col-sm-12 num">
+        <Uptime :monitor="monitor" :type="720" />
+    </span>
+</div>
+
 
                     <div v-if="tlsInfo" class="col-12 col-sm col row d-flex align-items-center d-sm-block">
                         <h4 class="col-4 col-sm-12">{{ $t("Cert Exp.") }}</h4>
@@ -135,7 +187,10 @@
             <div v-if="showPingChartBox" class="shadow-box big-padding text-center ping-chart-wrapper">
                 <div class="row">
                     <div class="col">
-                        <PingChart :monitor-id="monitor.id" />
+                        <PingChart :monitor-id="monitor.id" 
+                            @update-custom-dates="onUpdateCustomDates"
+
+                        />
                     </div>
                 </div>
             </div>
@@ -236,6 +291,9 @@ import CertificateInfo from "../components/CertificateInfo.vue";
 import { getMonitorRelativeURL } from "../util.ts";
 import { URL } from "whatwg-url";
 import { getResBaseURL } from "../util-frontend";
+import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
+dayjs.extend(customParseFormat);
 
 export default {
     components: {
@@ -249,6 +307,7 @@ export default {
         PingChart,
         Tag,
         CertificateInfo,
+       
     },
     data() {
         return {
@@ -257,14 +316,49 @@ export default {
             heartBeatList: [],
             toggleCertInfoBox: false,
             showPingChartBox: true,
+            customStartDate: "",
+            customEndDate: "",
+            filteredHeartbeats: [],
             paginationConfig: {
                 hideCount: true,
                 chunksNavigation: "scroll",
+               
             },
             cacheTime: Date.now(),
         };
     },
     computed: {
+        customDurationHours() {
+    if (this.customStartDate && this.customEndDate) {
+        // Accepte le format "YYYY-MM-DD" (input type="date")
+        const start = dayjs(this.customStartDate, "YYYY-MM-DD");
+        const end = dayjs(this.customEndDate, "YYYY-MM-DD").endOf("day");
+        const diff = end.diff(start, "hour");
+        console.log("Diff heures:", diff, "Start:", start.format(), "End:", end.format(), "Start valid:", start.isValid(), "End valid:", end.isValid());
+        return diff > 0 ? diff : 24;
+    }
+    return 24;
+},
+
+        customDurationDays() {
+        if (this.customStartDate && this.customEndDate) {
+            const start = dayjs(this.customStartDate, "YYYY-MM-DD");
+            const end = dayjs(this.customEndDate, "YYYY-MM-DD").endOf("day");
+            const diff = end.diff(start, "day");
+            return diff > 0 ? diff : 1;
+        }
+        return 30;
+    },
+
+    avgPingCustom() {
+        if (!this.filteredHeartbeats || this.filteredHeartbeats.length === 0) {
+            return 0;
+        }
+        const total = this.filteredHeartbeats.reduce((acc, hb) => acc + hb.ping, 0);
+        return (total / this.filteredHeartbeats.length).toFixed(2);
+    },
+
+
         monitor() {
             let id = this.$route.params.id;
             return this.$root.monitorList[id];
@@ -358,6 +452,13 @@ export default {
 
     },
     methods: {
+            onUpdateCustomDates({ start, end }) {
+        this.customStartDate = start;
+        this.customEndDate = end;
+    },
+
+
+
         getResBaseURL,
         /** Request a test notification be sent for this monitor */
         testNotification() {

@@ -45,40 +45,39 @@
                 </span>
             </div>
         </div>
-<!--
-           <div class="filter-form mt-4">
-  <label>
-    Début :
-    <input type="date" v-model="customStartDate" class="form-control"/>
-  </label>
-  <label class="ms-3">
-    Fin :
-    <input type="date" v-model="customEndDate" class="form-control"/>
-  </label>
-  <label class="ms-3">
-    Statuts :
-    <multiselect
-      v-model="selectedStatuses"
-      :options="statusOptions"
-      :multiple="true"
-      :close-on-select="false"
-      :clear-on-select="false"
-      :preserve-search="true"
-      placeholder="Sélectionnez un ou plusieurs statuts"
-      label="name"
-      track-by="value"
-    />
-  </label>
-  <button class="btn btn-primary ms-3" @click="filterStatusByPeriod">
-    Rechercher
-  </button>
-</div>
-<div v-if="noResult" class="text-center text-danger mt-4">
-  Aucun résultat trouvé pour les critères sélectionnés.
+
+           <div class="filter-form mt-4 d-flex align-items-end gap-6 flex-wrap">
+    <div>
+        <label>Date de début</label>
+        <input type="date" v-model="customStartDate" class="form-control" />
+    </div>
+    <div>
+        <label>Date de fin</label>
+        <input type="date" v-model="customEndDate" class="form-control" />
+    </div>
+    <div style="min-width:220px;">
+        <label>Statut</label>
+        <multiselect
+            v-model="selectedStatuses"
+            :options="statusOptions"
+            :multiple="true"
+            :close-on-select="false"
+            :clear-on-select="false"
+            :preserve-search="true"
+            placeholder="Sélectionnez un ou plusieurs statuts"
+            label="name"
+            track-by="value"
+        />
+    </div>
+    <div>
+        <button class="btn btn-primary" @click="filterStatusByPeriod">
+            Rechercher
+        </button>
+    </div>
 </div>
 
  
-<table class="table table-bordered mt-4" v-if="filteredHeartbeats.length">
+<!--<table class="table table-bordered mt-4" v-if="filteredHeartbeats.length">
   <thead>
     <tr>
       <th>Date/Heure</th>
@@ -120,7 +119,7 @@
             </div>
 
             <MonitorListItem
-                v-for="(item, index) in sortedMonitorList"
+                v-for="(item, index) in filteredMonitorList"
                 :key="index"
                 :monitor="item"
                 :showPathName="filtersActive"
@@ -176,10 +175,10 @@ export default {
     customEndDate: "",
     selectedStatuses: [],
     statusOptions: [
-        { name: "DOWN", value: 0 },
-        { name: "UP", value: 1 },
-        { name: "PENDING", value: 2 },
-        { name: "MAINTENANCE", value: 3 }
+        { name: "Hors ligne", value: 0 },
+        { name: "En ligne", value: 1 },
+        { name: "En attente", value: 2 },
+        { name: "En maintenance", value: 3 }
     ],
     filteredHeartbeats: [],
     windowTop: 0,
@@ -193,11 +192,29 @@ export default {
 
     },
     computed: {
+                filteredMonitorList() {
+        if (this.filteredHeartbeats.length > 0) {
+            // Récupère les IDs uniques des moniteurs trouvés dans les heartbeats filtrés
+            const ids = [...new Set(this.filteredHeartbeats.map(hb => hb.monitor_id))];
+            // Retourne les moniteurs correspondants depuis la liste globale
+            return this.sortedMonitorList.filter(m => ids.includes(m.id));
+        }
+        // Si aucune recherche, retourne la liste complète
+        return this.sortedMonitorList;
+    },
+
+
+
+
+
+
+
         /**
          * Improve the sticky appearance of the list by increasing its
          * height as user scrolls down.
          * Not used on mobile.
          */
+
         boxStyle() {
             if (window.innerWidth > 550) {
                 return {
@@ -591,5 +608,15 @@ export default {
     align-items: center;
     gap: 10px;
 }
+
+.filter-form .multiselect {
+    min-width: 220px;
+    height: 38px; /* même hauteur que .form-control */
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+}
+
+
 
 </style>
