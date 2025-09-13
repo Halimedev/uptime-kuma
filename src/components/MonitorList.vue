@@ -46,33 +46,37 @@
             </div>
         </div>
 
-           <div class="filter-form mt-4 d-flex align-items-end gap-6 flex-wrap">
-    <div>
-        <label>Date de début</label>
-        <input type="date" v-model="customStartDate" class="form-control" />
+           <div class="filter-form mt-4">
+    <div class="row g-2">
+        <div class="col-12 col-md-6">
+            <input type="date" v-model="customStartDate" class="form-control" />
+        </div>
+        <div class="col-12 col-md-6">
+            <input type="date" v-model="customEndDate" class="form-control" />
+        </div>
     </div>
-    <div>
-        <label>Date de fin</label>
-        <input type="date" v-model="customEndDate" class="form-control" />
-    </div>
-    <div style="min-width:220px;">
-        <label>Statut</label>
-        <multiselect
-            v-model="selectedStatuses"
-            :options="statusOptions"
-            :multiple="true"
-            :close-on-select="false"
-            :clear-on-select="false"
-            :preserve-search="true"
-            placeholder="Sélectionnez un ou plusieurs statuts"
-            label="name"
-            track-by="value"
-        />
-    </div>
-    <div>
-        <button class="btn btn-primary" @click="filterStatusByPeriod">
-            Rechercher
-        </button>
+    <div class="row g-2 mt-1">
+        <div class="col-12 col-md-6 d-flex align-items-end">
+            <div class="w-100">
+                <multiselect
+                    v-model="selectedStatuses"
+                    :options="statusOptions"
+                    :multiple="true"
+                    :close-on-select="false"
+                    :clear-on-select="false"
+                    :preserve-search="true"
+                    placeholder="Sélectionnez un ou plusieurs statuts"
+                    label="name"
+                    track-by="value"
+                    class="custom-multiselect"
+                />
+            </div>
+        </div>
+        <div class="col-12 col-md-6 d-flex align-items-end">
+            <button class="btn btn-primary w-100" style="height:38px" @click="filterStatusByPeriod">
+                Rechercher
+            </button>
+        </div>
     </div>
 </div>
 
@@ -609,9 +613,10 @@ export default {
     gap: 10px;
 }
 
-.filter-form .multiselect {
-    min-width: 220px;
-    height: 38px; /* même hauteur que .form-control */
+.filter-form .custom-multiselect,
+.filter-form .custom-multiselect .multiselect__tags {
+    min-height: 38px;
+    height: 38px;
     box-sizing: border-box;
     display: flex;
     align-items: center;
