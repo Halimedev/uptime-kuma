@@ -14,7 +14,7 @@ export default {
         },
         /** Type of monitor */
         type: {
-            type: String,
+            type: [String, Number],
             default: null,
         },
         /** Is this a pill? */
@@ -28,6 +28,7 @@ export default {
         uptime() {
             if (this.type === "maintenance") {
                 return this.$t("statusMaintenance");
+
             }
 
             let key = this.monitor.id + "_" + this.type;
@@ -84,10 +85,12 @@ export default {
         },
 
         title() {
+            if (this.type === "1y") {
+                return `1${this.$t("-year")}`;
+            }
             if (this.type === "720") {
                 return `30${this.$t("-day")}`;
             }
-
             return `24${this.$t("-hour")}`;
         }
     },

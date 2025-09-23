@@ -129,11 +129,6 @@
 
 
 
-
-
-
-
-
                    <!-- <div class="col-12 col-sm col row d-flex align-items-center d-sm-block">
                         <h4 class="col-4 col-sm-12">{{ $t("Uptime") }}</h4>
                         <p class="col-4 col-sm-12 mb-0 mb-sm-2">(24{{ $t("-hour") }})</p>
@@ -205,7 +200,7 @@
             </div>
 
             <div class="shadow-box table-shadow-box">
-                <div class="dropdown dropdown-clear-data">
+               <!-- <div class="dropdown dropdown-clear-data">
                     <button class="btn btn-sm btn-outline-danger dropdown-toggle" type="button" data-bs-toggle="dropdown">
                         <font-awesome-icon icon="trash" /> {{ $t("Clear Data") }}
                     </button>
@@ -221,7 +216,7 @@
                             </button>
                         </li>
                     </ul>
-                </div>
+                </div>-->
                 <table class="table table-borderless table-hover">
                     <thead>
                         <tr>

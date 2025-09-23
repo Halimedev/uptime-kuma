@@ -45,7 +45,7 @@
                 </span>
             </div>
         </div>
-
+<!--
            <div class="filter-form mt-4">
     <div class="row g-2">
         <div class="col-12 col-md-6">
@@ -65,7 +65,7 @@
                     :close-on-select="false"
                     :clear-on-select="false"
                     :preserve-search="true"
-                    placeholder="Sélectionnez un ou plusieurs statuts"
+                    placeholder="statuts"
                     label="name"
                     track-by="value"
                     class="custom-multiselect"
@@ -78,7 +78,7 @@
             </button>
         </div>
     </div>
-</div>
+</div>-->
 
  
 <!--<table class="table table-bordered mt-4" v-if="filteredHeartbeats.length">

@@ -8,6 +8,7 @@
                 <font-awesome-icon icon="angle-down" />
             </span>
         </button>
+        
         <ul class="filter-dropdown-menu" :class="{ 'open': open }">
             <slot name="dropdown"></slot>
         </ul>
